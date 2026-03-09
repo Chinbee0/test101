@@ -2,7 +2,7 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 
 --! 1. สร้างหน้าต่างหลัก (Window)
 local Window = Fluent:CreateWindow({
-    Title = "Retrograde", -- ชื่อสคริปต์ด้านบน
+    Title = "Devlahm Script", -- ชื่อสคริปต์ด้านบน
     SubTitle = "by Devlahm",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
