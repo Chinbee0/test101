@@ -59,112 +59,107 @@ VisualsSection:AddColorpicker("ESPColor", {
 })
 
 
---! 6. เพิ่มหัวข้อในหน้า Misc (Auto Typer)
-local MiscSection = Tabs.Misc:AddSection("Auto Typer")
 
--- ข้อมูลสำหรับ Auto Typer
-local wordsToType = {"รถ", "รถไฟ", "รถบรรทุก", "รถถัง", "รถกระบะ"}
-local targetWord = "คำที่ถูกต้อง"
-local isTyping = false
+
+
+
+--! 5. เพิ่มหัวข้อในหน้า Visuals (Misc)
+local MiscSection = Tabs.Misc:AddSection("Misc")
+
+local customWordsInput = ",Example,Example2," -- เก็บคำในรูปแบบ ,คำ1,คำ2,
+local isAutoTyping = false
 local autoTypeToggle = nil
-local usedWords = {} -- เก็บคำที่คนอื่นพิมพ์ไปแล้ว
 
--- ฟังก์ชันตรวจสอบแชทเพื่อเก็บคำที่ถูกใช้ไปแล้ว
-local function monitorChat()
-    local textChatService = game:GetService("TextChatService")
-    
-    -- แก้ไข: ใช้ MessageReceived (Event) แทน OnIncomingMessage (Callback) เพื่อป้องกันการ Crash
-    if textChatService then
-        textChatService.MessageReceived:Connect(function(textChatMessage)
-            if textChatMessage.Text then
-                usedWords[textChatMessage.Text] = true
-            end
-        end)
+-- ฟังก์ชันสำหรับแยกคำจากสตริงที่คั่นด้วยคอมม่า
+local function getWordsFromInput(str)
+    local words = {}
+    -- ค้นหาคำที่อยู่ระหว่างคอมม่า
+    for word in str:gmatch("([^,]+)") do
+        table.insert(words, word)
     end
-    
-    -- สำหรับระบบแชทเก่า
-    local chatEvents = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
-    if chatEvents and chatEvents:FindFirstChild("OnMessageDoneFiltering") then
-        chatEvents.OnMessageDoneFiltering.OnClientEvent:Connect(function(data)
-            if data and data.Message then
-                usedWords[data.Message] = true
-            end
-        end)
-    end
+    return words
 end
 
--- เริ่มตรวจจับแชททันที
-task.spawn(monitorChat)
-
--- เก็บ Cache ของ TextBox เพื่อไม่ต้องค้นหาใหม่ทุกครั้ง (ลดการใช้ CPU)
-local cachedInputBox = nil
-local function findInputBox()
-    -- ถ้าเคยหาเจอแล้ว และมันยังใช้งานได้อยู่ ให้ใช้ตัวเดิม
-    if cachedInputBox and cachedInputBox:IsDescendantOf(game) then
-        return cachedInputBox
-    end
-
-    -- ถ้ายังไม่เจอ ให้ค้นหาใหม่
-    for _, v in ipairs(game:GetService("Players").LocalPlayer.PlayerGui:GetDescendants()) do
-        if v:IsA("TextBox") and (v.PlaceholderText == "พิมพ์คำศัพท์ของคุณที่นี่" or v.Name == "Input") then
-            cachedInputBox = v
+-- ฟังก์ชันสำหรับค้นหา TextBox ตามรูปภาพ (PlaceholderText: พิมพ์คำศัพท์ของคุณที่นี่)
+local function findTargetTextBox()
+    for _, v in pairs(game:GetDescendants()) do
+        if v:IsA("TextBox") and v.PlaceholderText == "พิมพ์คำศัพท์ของคุณที่นี่" then
             return v
         end
     end
     return nil
 end
 
--- ฟังก์ชันส่งข้อความ
-local function sendToUI(message)
-    local targetInput = findInputBox()
-    if targetInput then
-        targetInput:CaptureFocus()
-        targetInput.Text = message
-        task.wait(0.1)
-        targetInput:ReleaseFocus(true)
-        print("ส่งคำว่า: " .. message)
-    end
+-- ฟังก์ชันสำหรับพิมพ์คำลงใน TextBox โดยไม่กด Enter อัตโนมัติ
+local function typeInBoxManual(textBox, text)
+    textBox.Text = text
+    -- โฟกัสไปที่ช่องพิมพ์เพื่อให้ผู้ใช้กด Enter ได้ทันที
+    textBox:CaptureFocus()
 end
 
--- ฟังก์ชันหลัก
-local function startAutoTyper()
-    for _, word in ipairs(wordsToType) do
-        if not isTyping then break end
-        
-        -- ตรวจสอบว่าคำนี้ถูกคนอื่นพิมพ์ไปหรือยัง
-        if usedWords[word] then
-            print("ข้ามคำว่า: " .. word .. " (มีคนพิมพ์ไปแล้ว)")
-            continue -- ข้ามไปคำต่อไปทันที
-        end
-        
-        if word == targetWord then
-            isTyping = false
-            if autoTypeToggle then autoTypeToggle:SetValue(false) end
-            break 
-        else
-            sendToUI(word)
-            task.wait(1.2) -- ปรับความเร็วได้
-        end
+local function runAutoTyper()
+    local textBox = findTargetTextBox()
+    
+    if not textBox then
+        Fluent:Notify({
+            Title = "Error",
+            Content = "ไม่พบช่องพิมพ์คำศัพท์ (TextBox)",
+            Duration = 3
+        })
+        isAutoTyping = false
+        if autoTypeToggle then autoTypeToggle:SetValue(false) end
+        return
     end
-    isTyping = false
+
+    local wordsToType = getWordsFromInput(customWordsInput)
+
+    for _, word in ipairs(wordsToType) do
+        if not isAutoTyping then break end
+        
+        -- พิมพ์คำลงในช่องแชท
+        print("กำลังพิมพ์คำ: " .. word)
+        typeInBoxManual(textBox, word)
+
+        -- รอจนกว่าผู้ใช้จะกด Enter ในช่อง TextBox นั้น
+        local enterPressed = false
+        repeat
+            local _, ep = textBox.FocusLost:Wait()
+            enterPressed = ep
+            -- ตรวจสอบว่ายังเปิดโหมด AutoType อยู่ไหม ถ้าปิดแล้วให้หลุด Loop
+            if not isAutoTyping then break end
+        until enterPressed
+
+        -- เว้นระยะ 2 วินาที ก่อนพิมพ์คำถัดไปหลังจากกด Enter
+        task.wait(2)
+    end
+    
+    isAutoTyping = false
     if autoTypeToggle then autoTypeToggle:SetValue(false) end
 end
 
--- สร้าง Toggle
-autoTypeToggle = MiscSection:AddToggle("Auto Type", {
-    Title = "Enabled", 
-    Default = false,
+MiscSection:AddInput("CustomWords", {
+    Title = "Custom Words List",
+    Description = "ใส่คำที่ต้องการคั่นด้วย , เช่น ,คำ1,คำ2,",
+    Default = customWordsInput,
+    Placeholder = ",word1,word2,",
+    Numeric = false,
+    Finished = false,
     Callback = function(Value)
-        isTyping = Value
-        if isTyping then
-            task.spawn(startAutoTyper)
-        end
+        customWordsInput = Value
     end
 })
 
-
-
-
+autoTypeToggle = MiscSection:AddToggle("AutoTypeUI", {
+    Title = "Auto Type (In-Box)", 
+    Description = "พิมพ์คำลงในช่องแชท/ช่องกรอกตามรูปโดยอัตโนมัติ",
+    Default = false,
+    Callback = function(Value)
+        isAutoTyping = Value
+        if isAutoTyping then
+            task.spawn(runAutoTyper)
+        end
+    end
+})
 
 
 
