@@ -139,7 +139,7 @@ end
 
 MiscSection:AddInput("CustomWords", {
     Title = "Custom Words List",
-    Description = "ใส่คำที่ต้องการคั่นด้วย , เช่น ,คำ1,คำ2,",
+    Description = "ใส่คำที่ต้องการคั่นด้วยเช่น ,คำ1,คำ2,คำ3,",
     Default = customWordsInput,
     Placeholder = ",word1,word2,",
     Numeric = false,
@@ -151,7 +151,7 @@ MiscSection:AddInput("CustomWords", {
 
 autoTypeToggle = MiscSection:AddToggle("AutoTypeUI", {
     Title = "Auto Type (In-Box)", 
-    Description = "พิมพ์คำลงในช่องแชท/ช่องกรอกตามรูปโดยอัตโนมัติ",
+    Description = "พิมพ์คำลงในช่องแชท/ช่องกรอกคำโดยอัตโนมัติ",
     Default = false,
     Callback = function(Value)
         isAutoTyping = Value
